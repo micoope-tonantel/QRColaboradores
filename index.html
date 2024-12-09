@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Colaboradores - Cooperativa Tonantel, R.L.</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    header {
+      background-color: #004d99;
+      color: white;
+      text-align: center;
+      padding: 10px 0;
+    }
+    form {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    form label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    form input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    form button {
+      background-color: #004d99;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    form button:hover {
+      background-color: #003366;
+    }
+    .collaborator-list {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+    }
+    .collaborator-item {
+      margin-bottom: 20px;
+    }
+    .qr-code {
+      display: block;
+      margin: 10px 0;
+    }
+    .search-bar {
+      max-width: 600px;
+      margin: 20px auto;
+      text-align: center;
+    }
+    .search-bar input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestión de Colaboradores - Cooperativa Tonantel, R.L.</h1>
+  </header>
+  <form id="collaborator-form">
+    <label for="nombre">Nombre:</label>
+    <input type="text" id="nombre" required>
+    <label for="operador">Operador:</label>
+    <input type="text" id="operador" required>
+    <label for="dpi">DPI:</label>
+    <input type="text" id="dpi" required>
+    <label for="puesto">Puesto:</label>
+    <input type="text" id="puesto" required>
+    <label for="departamento">Departamento:</label>
+    <input type="text" id="departamento" required>
+    <label for="agencia">Agencia:</label>
+    <input type="text" id="agencia" required>
+    <button type="button" id="add-collaborator">Agregar Colaborador</button>
+  </form>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="Buscar colaborador por nombre u operador...">
+  </div>
+
+  <div class="collaborator-list" id="collaborator-list">
+    <h2>Lista de Colaboradores</h2>
+  </div>
+
+  <script>
+    const form = document.getElementById('collaborator-form');
+    const collaboratorList = document.getElementById('collaborator-list');
+    const addCollaboratorButton = document.getElementById('add-collaborator');
+    const searchInput = document.getElementById('search-input');
+
+    const STORAGE_KEY = 'collaborators';
+
+    // Cargar colaboradores desde localStorage
+    function loadCollaborators() {
+      const collaborators = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      collaborators.forEach(renderCollaborator);
+    }
+
+    // Guardar colaboradores en localStorage
+    function saveCollaborator(collaborator) {
+      const collaborators = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      collaborators.push(collaborator);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(collaborators));
+    }
+
+    // Eliminar un colaborador de localStorage
+    function deleteCollaborator(operador) {
+      let collaborators = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      collaborators = collaborators.filter(c => c.operador !== operador);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(collaborators));
+    }
+
+    // Renderizar un colaborador en la lista
+    function renderCollaborator({ nombre, operador }) {
+      const qrUrl = `https://micoope-tonantel.github.io/QRColaboradores/Colaboradores/${operador}.html`;
+      const collaboratorItem = document.createElement('div');
+      collaboratorItem.className = 'collaborator-item';
+      collaboratorItem.setAttribute('data-nombre', nombre.toLowerCase());
+      collaboratorItem.setAttribute('data-operador', operador.toLowerCase());
+      collaboratorItem.innerHTML = `
+        <p><strong>${nombre} (${operador})</strong></p>
+        <canvas class="qr-code" id="qr-${operador}"></canvas>
+        <button type="button" onclick="downloadQr('${operador}')">Descargar QR</button>
+        <button type="button" onclick="removeCollaborator('${operador}')">Eliminar</button>
+      `;
+      collaboratorList.appendChild(collaboratorItem);
+
+      const qr = new QRious({
+        element: document.getElementById(`qr-${operador}`),
+        value: qrUrl,
+        size: 150,
+      });
+    }
+
+    // Buscar colaboradores en la lista
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      const collaborators = document.querySelectorAll('.collaborator-item');
+      collaborators.forEach(item => {
+        const nombre = item.getAttribute('data-nombre');
+        const operador = item.getAttribute('data-operador');
+        if (nombre.includes(query) || operador.includes(query)) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+
+    // Agregar un nuevo colaborador
+    addCollaboratorButton.addEventListener('click', () => {
+      const nombre = document.getElementById('nombre').value;
+      const operador = document.getElementById('operador').value;
+      const dpi = document.getElementById('dpi').value;
+      const puesto = document.getElementById('puesto').value;
+      const departamento = document.getElementById('departamento').value;
+      const agencia = document.getElementById('agencia').value;
+
+      if (!nombre || !operador || !dpi || !puesto || !departamento || !agencia) {
+        alert('Por favor, completa todos los campos.');
+        return;
+      }
+
+      const collaboratorHtml = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${operador} - Cooperativa Tonantel, R.L.</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    header {
+      background-color: #004d99;
+      color: white;
+      text-align: center;
+      padding: 10px 0;
+    }
+    .content {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+    }
+    .content p {
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cooperativa Tonantel, R.L.</h1>
+  </header>
+  <div class="content">
+    <p><strong>Nombre:</strong> ${nombre}</p>
+    <p><strong>Operador:</strong> ${operador}</p>
+    <p><strong>DPI:</strong> ${dpi}</p>
+    <p><strong>Puesto:</strong> ${puesto}</p>
+    <p><strong>Departamento:</strong> ${departamento}</p>
+    <p><strong>Agencia:</strong> ${agencia}</p>
+  </div>
+</body>
+</html>
+      `;
+
+      const blob = new Blob([collaboratorHtml], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${operador}.html`;
+      a.click();
+
+      const collaborator = { nombre, operador };
+      saveCollaborator(collaborator);
+      renderCollaborator(collaborator);
+
+      form.reset();
+    });
+
+    function downloadQr(id) {
+      const canvas = document.getElementById(`qr-${id}`);
+      const link = document.createElement('a');
+      link.download = `${id}-qr.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+
+    function removeCollaborator(operador) {
+      if (confirm('¿Seguro que deseas eliminar este registro?')) {
+        deleteCollaborator(operador);
+        document.querySelector(`.collaborator-item[data-operador="${operador.toLowerCase()}"]`).remove();
+      }
+    }
+
+    // Inicializar la lista de colaboradores al cargar la página
+    loadCollaborators();
+  </script>
+</body>
+</html>
